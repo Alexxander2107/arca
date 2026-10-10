@@ -1,17 +1,31 @@
-import { FormEvent, useState } from "react";
-import { getUsuarios, hashPassword, saveUsuarios, uid } from "../storage";
+import { useState } from "react";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { useAuth } from "../auth";
+import { buscarUsuario, crearUsuario } from "../db";
+import { hashPassword } from "../storage";
+import { colors } from "../theme";
 import { ROL_LABEL, Rol, Usuario } from "../types";
 
-interface Props {
-  onAuth: (u: Usuario) => void;
-}
-
-export default function Login({ onAuth }: Props) {
+export default function Login() {
+  const { entrar } = useAuth();
+  const router = useRouter();
   const [modo, setModo] = useState<"login" | "registro">("login");
   const [nombre, setNombre] = useState("");
+  const [apellido, setApellido] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [rol, setRol] = useState<Rol>("secretaria");
+  const [rol, setRol] = useState<Rol>("DOCENTE");
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
 
@@ -20,138 +34,184 @@ export default function Login({ onAuth }: Props) {
     setError("");
   };
 
-  const enviar = async (e: FormEvent) => {
-    e.preventDefault();
+  const enviar = async () => {
     setError("");
     const correo = email.trim().toLowerCase();
 
-    if (!/^\S+@\S+\.\S+$/.test(correo)) {
-      return setError("Escribe un correo válido.");
-    }
-    if (password.length < 6) {
+    if (!/^\S+@\S+\.\S+$/.test(correo)) return setError("Escribe un correo válido.");
+    if (password.length < 6)
       return setError("La contraseña debe tener al menos 6 caracteres.");
-    }
-    if (modo === "registro" && nombre.trim().length < 2) {
-      return setError("Escribe tu nombre.");
-    }
+    if (modo === "registro" && (nombre.trim().length < 2 || apellido.trim().length < 2))
+      return setError("Escribe tu nombre y apellido.");
 
     setCargando(true);
     try {
       const hash = await hashPassword(password);
-      const usuarios = await getUsuarios();
 
       if (modo === "registro") {
-        if (usuarios.some((u) => u.email === correo)) {
-          return setError("Ese correo ya está registrado. Inicia sesión.");
-        }
-        const nuevo: Usuario = {
-          id: uid(),
+        const nuevo = await crearUsuario({
           nombre: nombre.trim(),
-          email: correo,
-          passwordHash: hash,
+          apellido: apellido.trim(),
+          correo,
+          hash,
           rol,
-        };
-        saveUsuarios([...usuarios, nuevo]);
-        onAuth(nuevo);
+        });
+        await entrar(nuevo);
+        router.replace("/board");
       } else {
-        const u = usuarios.find(
-          (x) => x.email === correo && x.passwordHash === hash
-        );
+        const u = await buscarUsuario(correo, hash);
         if (!u) return setError("Correo o contraseña incorrectos.");
-        onAuth(u);
+        await entrar(u);
+        router.replace("/board");
       }
+    } catch (e) {
+      setError(
+        e instanceof Error && e.message === "CORREO_DUPLICADO"
+          ? "Ese correo ya está registrado. Inicia sesión."
+          : "No se pudo acceder a la base de datos."
+      );
     } finally {
       setCargando(false);
     }
   };
 
   return (
-    <main className="login-wrap">
-      <section className="login-hero" aria-hidden="true">
-        <h1>ARCA</h1>
-        <p>Administrador de Registro, Control y Actividades</p>
-        <svg viewBox="0 0 400 120" className="waves">
-          <path d="M0 60 Q50 20 100 60 T200 60 T300 60 T400 60 V120 H0Z" />
-          <path d="M0 85 Q50 55 100 85 T200 85 T300 85 T400 85 V120 H0Z" />
-        </svg>
-      </section>
+    <SafeAreaView style={s.safe}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+          <View style={s.hero}>
+            <Text style={s.logo}>ARCA</Text>
+            <Text style={s.sub}>Administrador de Registro, Control y Actividades</Text>
+          </View>
 
-      <section className="login-card">
-        <div className="tabs" role="tablist">
-          <button
-            role="tab"
-            aria-selected={modo === "login"}
-            className={modo === "login" ? "tab active" : "tab"}
-            onClick={() => cambiarModo("login")}
-          >
-            Iniciar sesión
-          </button>
-          <button
-            role="tab"
-            aria-selected={modo === "registro"}
-            className={modo === "registro" ? "tab active" : "tab"}
-            onClick={() => cambiarModo("registro")}
-          >
-            Crear cuenta
-          </button>
-        </div>
+          <View style={s.card}>
+            <View style={s.tabs}>
+              {(["login", "registro"] as const).map((m) => (
+                <Pressable key={m} style={s.tab} onPress={() => cambiarModo(m)}>
+                  <Text style={[s.tabText, modo === m && s.tabActive]}>
+                    {m === "login" ? "Iniciar sesión" : "Crear cuenta"}
+                  </Text>
+                  {modo === m && <View style={s.tabLine} />}
+                </Pressable>
+              ))}
+            </View>
 
-        <form onSubmit={enviar} noValidate>
-          {modo === "registro" && (
-            <label>
-              Nombre
-              <input
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                autoComplete="name"
-              />
-            </label>
-          )}
+            {modo === "registro" && (
+              <>
+                <Text style={s.label}>Nombre</Text>
+                <TextInput style={s.input} value={nombre} onChangeText={setNombre} />
+                <Text style={s.label}>Apellido</Text>
+                <TextInput style={s.input} value={apellido} onChangeText={setApellido} />
+              </>
+            )}
 
-          <label>
-            Correo
-            <input
-              type="email"
+            <Text style={s.label}>Correo</Text>
+            <TextInput
+              style={s.input}
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
             />
-          </label>
 
-          <label>
-            Contraseña
-            <input
-              type="password"
+            <Text style={s.label}>Contraseña</Text>
+            <TextInput
+              style={s.input}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete={modo === "login" ? "current-password" : "new-password"}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoCapitalize="none"
             />
-          </label>
 
-          {modo === "registro" && (
-            <label>
-              Rol
-              <select value={rol} onChange={(e) => setRol(e.target.value as Rol)}>
-                {(Object.keys(ROL_LABEL) as Rol[]).map((r) => (
-                  <option key={r} value={r}>
-                    {ROL_LABEL[r]}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
+            {modo === "registro" && (
+              <>
+                <Text style={s.label}>Rol</Text>
+                <View style={s.roles}>
+                  {(Object.keys(ROL_LABEL) as Rol[]).map((r) => (
+                    <Pressable
+                      key={r}
+                      onPress={() => setRol(r)}
+                      style={[s.rolBtn, rol === r && s.rolBtnActive]}
+                    >
+                      <Text style={[s.rolText, rol === r && { color: colors.blanco }]}>
+                        {ROL_LABEL[r]}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </>
+            )}
 
-          {error && (
-            <p className="error" role="alert">
-              {error}
-            </p>
-          )}
+            {!!error && <Text style={s.error}>{error}</Text>}
 
-          <button className="btn btn-primary" type="submit" disabled={cargando}>
-            {modo === "login" ? "Entrar" : "Crear cuenta"}
-          </button>
-        </form>
-      </section>
-    </main>
+            <Pressable
+              style={[s.btn, cargando && { opacity: 0.6 }]}
+              onPress={enviar}
+              disabled={cargando}
+            >
+              <Text style={s.btnText}>
+                {modo === "login" ? "Entrar" : "Crear cuenta"}
+              </Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
+
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.abismo },
+  scroll: { flexGrow: 1 },
+  hero: { padding: 32, paddingTop: 48 },
+  logo: { color: colors.blanco, fontSize: 56, fontWeight: "800", letterSpacing: 3 },
+  sub: { color: "#b9d3d8", fontSize: 16, marginTop: 4, maxWidth: 260 },
+  card: {
+    flex: 1,
+    backgroundColor: colors.espuma,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 24,
+    minHeight: 420,
+  },
+  tabs: { flexDirection: "row", marginBottom: 16 },
+  tab: { paddingVertical: 8, paddingRight: 20 },
+  tabText: { fontSize: 16, fontWeight: "600", color: colors.suave },
+  tabActive: { color: colors.abismo },
+  tabLine: { height: 3, backgroundColor: colors.laguna, marginTop: 6, borderRadius: 2 },
+  label: { color: colors.texto, fontWeight: "600", marginTop: 12, marginBottom: 6 },
+  input: {
+    backgroundColor: colors.blanco,
+    borderWidth: 1,
+    borderColor: colors.borde,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: colors.texto,
+  },
+  roles: { flexDirection: "row", gap: 8 },
+  rolBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.borde,
+    backgroundColor: colors.blanco,
+    alignItems: "center",
+  },
+  rolBtnActive: { backgroundColor: colors.laguna, borderColor: colors.laguna },
+  rolText: { fontWeight: "600", color: colors.texto, fontSize: 13 },
+  error: { color: colors.error, marginTop: 12 },
+  btn: {
+    backgroundColor: colors.laguna,
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginTop: 20,
+  },
+  btnText: { color: colors.blanco, fontSize: 16, fontWeight: "700" },
+});

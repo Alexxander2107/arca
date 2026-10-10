@@ -1,22 +1,35 @@
+import { useCallback, useEffect, useState } from "react";
 import { Redirect, useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../auth";
-import { getTareas, saveTareas, uid } from "../storage";
+import {
+  actualizarEstado,
+  crearEtiqueta,
+  crearTablero,
+  crearTarea,
+  editarTarea,
+  eliminarTarea,
+  listarEtiquetas,
+  listarPersonas,
+  listarTableros,
+  listarTareas,
+} from "../db";
+import Filtros, { FILTRO_VACIO, FiltroTareas } from "../components/Filtros";
+import TareaCard from "../components/TareaCard";
+import TareaModal from "../components/TareaModal";
 import { colors } from "../theme";
-import { Estado, ROL_LABEL, Tarea, Usuario } from "../types";
+import { Estado, Etiqueta, Persona, ROL_LABEL, Tablero, Tarea, TareaForm, Usuario } from "../types";
 
 const COLUMNAS: { id: Estado; titulo: string; vacio: string; color: string }[] = [
   { id: "espera", titulo: "En espera", vacio: "Sin tareas pendientes.", color: "#8fa3ab" },
@@ -31,51 +44,83 @@ interface Props {
 }
 
 function BoardContent({ usuario, onSalir }: Props) {
+  const [tableros, setTableros] = useState<Tablero[]>([]);
+  const [tableroId, setTableroId] = useState<number | null>(null);
   const [tareas, setTareas] = useState<Tarea[]>([]);
-  const [listo, setListo] = useState(false);
+  const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([]);
+  const [personas, setPersonas] = useState<Persona[]>([]);
   const [activa, setActiva] = useState<Estado>("espera");
-  const [titulo, setTitulo] = useState("");
-  const [descripcion, setDescripcion] = useState("");
-  const esDueno = usuario.rol === "dueno";
-  const primera = useRef(true);
+
+  const [busqueda, setBusqueda] = useState("");
+  const [filtro, setFiltro] = useState<FiltroTareas>(FILTRO_VACIO);
+
+  const [modalAbierto, setModalAbierto] = useState(false);
+  const [editando, setEditando] = useState<Tarea | null>(null);
+
+  const [creandoTablero, setCreandoTablero] = useState(false);
+  const [nombreTablero, setNombreTablero] = useState("");
+
+  const puedeCrear = usuario.rol !== "ESTUDIANTE";
+  const puedeEliminar = usuario.rol === "ADMINISTRADOR";
+
+  // Datos generales (tableros, etiquetas, personas)
+  const cargarBase = useCallback(async () => {
+    const [tabs, etq, pers] = await Promise.all([
+      listarTableros(usuario.id),
+      listarEtiquetas(),
+      listarPersonas(),
+    ]);
+    setTableros(tabs);
+    setEtiquetas(etq);
+    setPersonas(pers);
+    setTableroId((prev) => (prev !== null && tabs.some((t) => t.id === prev) ? prev : tabs[0].id));
+  }, [usuario.id]);
+
+  const cargarTareas = useCallback(async () => {
+    if (tableroId === null) return;
+    setTareas(await listarTareas(tableroId));
+  }, [tableroId]);
 
   useEffect(() => {
-    getTareas().then((t) => {
-      setTareas(t);
-      setListo(true);
-    });
-  }, []);
+    cargarBase();
+  }, [cargarBase]);
 
-  // Guarda cada cambio (después de la carga inicial)
   useEffect(() => {
-    if (!listo) return;
-    if (primera.current) {
-      primera.current = false;
-      return;
-    }
-    saveTareas(tareas);
-  }, [tareas, listo]);
+    cargarTareas();
+  }, [cargarTareas]);
 
-  const crear = () => {
-    if (!titulo.trim()) return;
-    const nueva: Tarea = {
-      id: uid(),
-      titulo: titulo.trim(),
-      descripcion: descripcion.trim(),
-      estado: "espera",
-      creadaPor: usuario.nombre,
-      creadaEn: Date.now(),
-    };
-    setTareas((t) => [nueva, ...t]);
-    setTitulo("");
-    setDescripcion("");
-    setActiva("espera");
+  // ---------- Acciones ----------
+  const abrirNueva = () => {
+    setEditando(null);
+    setModalAbierto(true);
   };
 
-  const desplazar = (t: Tarea, dir: -1 | 1) => {
+  const abrirEdicion = (t: Tarea) => {
+    setEditando(t);
+    setModalAbierto(true);
+  };
+
+  const guardar = async (f: TareaForm) => {
+    if (editando) await editarTarea(editando.id, f);
+    else if (tableroId !== null) {
+      await crearTarea(usuario.id, tableroId, f);
+      setActiva("espera");
+    }
+    setModalAbierto(false);
+    await cargarTareas();
+  };
+
+  const nuevaEtiqueta = async (nombre: string) => {
+    const e = await crearEtiqueta(nombre);
+    setEtiquetas(await listarEtiquetas());
+    return e;
+  };
+
+  const desplazar = async (t: Tarea, dir: -1 | 1) => {
     const i = ORDEN.indexOf(t.estado) + dir;
     if (i < 0 || i >= ORDEN.length) return;
-    setTareas((all) => all.map((x) => (x.id === t.id ? { ...x, estado: ORDEN[i] } : x)));
+    await actualizarEstado(t.id, ORDEN[i]);
+    await cargarTareas();
   };
 
   const eliminar = (t: Tarea) =>
@@ -84,12 +129,37 @@ function BoardContent({ usuario, onSalir }: Props) {
       {
         text: "Eliminar",
         style: "destructive",
-        onPress: () => setTareas((all) => all.filter((x) => x.id !== t.id)),
+        onPress: async () => {
+          await eliminarTarea(t.id);
+          await cargarTareas();
+        },
       },
     ]);
 
+  const guardarTablero = async () => {
+    const n = nombreTablero.trim();
+    if (!n) return;
+    const id = await crearTablero(usuario.id, n);
+    setNombreTablero("");
+    setCreandoTablero(false);
+    await cargarBase();
+    setTableroId(id);
+    setBusqueda("");
+    setFiltro(FILTRO_VACIO);
+  };
+
+  // ---------- Filtros (en memoria) ----------
+  const q = busqueda.trim().toLowerCase();
+  const visibles = tareas.filter((t) => {
+    if (q && !`${t.titulo} ${t.descripcion}`.toLowerCase().includes(q)) return false;
+    if (filtro.prioridad && t.prioridad !== filtro.prioridad) return false;
+    if (filtro.etiquetaId !== null && !t.etiquetas.some((e) => e.id === filtro.etiquetaId)) return false;
+    if (filtro.soloMias && !t.responsables.some((r) => r.id === usuario.id)) return false;
+    return true;
+  });
+
   const col = COLUMNAS.find((c) => c.id === activa)!;
-  const items = tareas.filter((t) => t.estado === activa);
+  const items = visibles.filter((t) => t.estado === activa);
 
   return (
     <SafeAreaView style={s.safe} edges={["top", "bottom"]}>
@@ -105,38 +175,59 @@ function BoardContent({ usuario, onSalir }: Props) {
         </Pressable>
       </View>
 
-      <KeyboardAvoidingView
-        style={s.body}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        {esDueno ? (
-          <View style={s.form}>
+      <View style={s.body}>
+        {/* Selector de tableros */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.tableros}
+          style={{ flexGrow: 0 }}
+        >
+          {tableros.map((t) => (
+            <Pressable
+              key={t.id}
+              onPress={() => setTableroId(t.id)}
+              style={[s.tableroChip, t.id === tableroId && s.tableroOn]}
+            >
+              <Text style={[s.tableroTexto, t.id === tableroId && { color: colors.blanco }]}>
+                {t.nombre}
+              </Text>
+            </Pressable>
+          ))}
+          {puedeCrear && (
+            <Pressable onPress={() => setCreandoTablero((v) => !v)} style={s.tableroNuevo}>
+              <Text style={s.tableroNuevoTexto}>+ Tablero</Text>
+            </Pressable>
+          )}
+        </ScrollView>
+
+        {creandoTablero && (
+          <View style={s.nuevoTablero}>
             <TextInput
               style={s.input}
-              placeholder="Nueva tarea"
-              value={titulo}
-              onChangeText={setTitulo}
+              placeholder="Nombre del tablero"
+              value={nombreTablero}
+              onChangeText={setNombreTablero}
+              autoFocus
             />
-            <TextInput
-              style={s.input}
-              placeholder="Detalle (opcional)"
-              value={descripcion}
-              onChangeText={setDescripcion}
-            />
-            <Pressable style={s.btn} onPress={crear}>
-              <Text style={s.btnText}>Agregar tarea</Text>
+            <Pressable style={s.btnCrear} onPress={guardarTablero}>
+              <Text style={s.btnCrearTexto}>Crear</Text>
             </Pressable>
           </View>
-        ) : (
-          <Text style={s.hint}>
-            Como secretaria puedes actualizar el estado de las tareas. Solo el dueño
-            puede crearlas o eliminarlas.
-          </Text>
         )}
 
+        <Filtros
+          busqueda={busqueda}
+          onBusqueda={setBusqueda}
+          filtro={filtro}
+          onFiltro={setFiltro}
+          etiquetas={etiquetas}
+        />
+
+        {/* Pestañas de estado */}
         <View style={s.tabs}>
           {COLUMNAS.map((c) => {
-            const n = tareas.filter((t) => t.estado === c.id).length;
+            const n = visibles.filter((t) => t.estado === c.id).length;
             const on = c.id === activa;
             return (
               <Pressable
@@ -145,9 +236,7 @@ function BoardContent({ usuario, onSalir }: Props) {
                 style={[s.tab, on && { borderBottomColor: c.color }]}
               >
                 <Text style={[s.tabText, on && { color: colors.abismo }]}>{c.titulo}</Text>
-                <Text style={[s.count, on && { backgroundColor: c.color, color: "#fff" }]}>
-                  {n}
-                </Text>
+                <Text style={[s.count, on && { backgroundColor: c.color, color: "#fff" }]}>{n}</Text>
               </Pressable>
             );
           })}
@@ -155,122 +244,41 @@ function BoardContent({ usuario, onSalir }: Props) {
 
         <FlatList
           data={items}
-          keyExtractor={(t) => t.id}
-          contentContainerStyle={{ padding: 16, paddingTop: 12, flexGrow: 1 }}
+          keyExtractor={(t) => String(t.id)}
+          contentContainerStyle={{ padding: 16, paddingTop: 12, paddingBottom: 90, flexGrow: 1 }}
           ListEmptyComponent={<Text style={s.empty}>{col.vacio}</Text>}
           renderItem={({ item }) => (
-            <View style={[s.card, { borderLeftColor: col.color }]}>
-              <Text style={s.cardTitle}>{item.titulo}</Text>
-              {!!item.descripcion && <Text style={s.cardDesc}>{item.descripcion}</Text>}
-              <View style={s.cardFoot}>
-                <Text style={s.autor}>{item.creadaPor}</Text>
-                <View style={s.actions}>
-                  <Pressable
-                    style={[s.icon, item.estado === "espera" && s.iconOff]}
-                    disabled={item.estado === "espera"}
-                    onPress={() => desplazar(item, -1)}
-                  >
-                    <Text style={s.iconText}>←</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[s.icon, item.estado === "completado" && s.iconOff]}
-                    disabled={item.estado === "completado"}
-                    onPress={() => desplazar(item, 1)}
-                  >
-                    <Text style={s.iconText}>→</Text>
-                  </Pressable>
-                  {esDueno && (
-                    <Pressable style={s.icon} onPress={() => eliminar(item)}>
-                      <Text style={[s.iconText, { color: colors.error }]}>✕</Text>
-                    </Pressable>
-                  )}
-                </View>
-              </View>
-            </View>
+            <TareaCard
+              tarea={item}
+              borde={col.color}
+              puedeEditar={puedeCrear}
+              puedeEliminar={puedeEliminar}
+              onEditar={() => abrirEdicion(item)}
+              onMover={(dir) => desplazar(item, dir)}
+              onEliminar={() => eliminar(item)}
+            />
           )}
         />
-      </KeyboardAvoidingView>
+
+        {puedeCrear && (
+          <Pressable style={s.fab} onPress={abrirNueva}>
+            <Text style={s.fabTexto}>+ Nueva tarea</Text>
+          </Pressable>
+        )}
+      </View>
+
+      <TareaModal
+        visible={modalAbierto}
+        inicial={editando}
+        etiquetas={etiquetas}
+        personas={personas}
+        onClose={() => setModalAbierto(false)}
+        onGuardar={guardar}
+        onCrearEtiqueta={nuevaEtiqueta}
+      />
     </SafeAreaView>
   );
 }
-
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.abismo },
-  topbar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  brand: { color: colors.blanco, fontSize: 24, fontWeight: "800", letterSpacing: 2 },
-  user: { color: "#b9d3d8", fontSize: 13 },
-  salir: { borderWidth: 1, borderColor: "rgba(255,255,255,.4)", borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
-  salirText: { color: colors.blanco, fontWeight: "600" },
-  body: { flex: 1, backgroundColor: colors.espuma },
-  form: { padding: 16, paddingBottom: 4, gap: 8 },
-  hint: { color: colors.suave, padding: 16, paddingBottom: 4 },
-  input: {
-    backgroundColor: colors.blanco,
-    borderWidth: 1,
-    borderColor: colors.borde,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: colors.texto,
-  },
-  btn: { backgroundColor: colors.laguna, borderRadius: 10, paddingVertical: 12, alignItems: "center" },
-  btnText: { color: colors.blanco, fontWeight: "700", fontSize: 15 },
-  tabs: { flexDirection: "row", marginTop: 8, borderBottomWidth: 1, borderBottomColor: colors.borde },
-  tab: {
-    flex: 1,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 12,
-    borderBottomWidth: 3,
-    borderBottomColor: "transparent",
-  },
-  tabText: { color: colors.suave, fontWeight: "600", fontSize: 13 },
-  count: {
-    backgroundColor: "#dcecee",
-    color: colors.texto,
-    borderRadius: 10,
-    overflow: "hidden",
-    paddingHorizontal: 7,
-    paddingVertical: 1,
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  empty: { color: colors.suave, textAlign: "center", marginTop: 32 },
-  card: {
-    backgroundColor: colors.blanco,
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 10,
-    borderLeftWidth: 5,
-    borderWidth: 1,
-    borderColor: colors.borde,
-  },
-  cardTitle: { fontSize: 16, fontWeight: "700", color: colors.texto },
-  cardDesc: { color: "#3f5b67", marginTop: 4 },
-  cardFoot: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 12 },
-  autor: { color: colors.suave, fontSize: 12 },
-  actions: { flexDirection: "row", gap: 6 },
-  icon: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.borde,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  iconOff: { opacity: 0.3 },
-  iconText: { fontSize: 16, color: colors.texto },
-});
 
 // Pantalla de la ruta /board: protege el acceso y entrega el usuario
 export default function Board() {
@@ -296,3 +304,90 @@ export default function Board() {
     />
   );
 }
+
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.abismo },
+  topbar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  brand: { color: colors.blanco, fontSize: 24, fontWeight: "800", letterSpacing: 2 },
+  user: { color: "#b9d3d8", fontSize: 13 },
+  salir: {
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,.4)",
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  salirText: { color: colors.blanco, fontWeight: "600" },
+  body: { flex: 1, backgroundColor: colors.espuma },
+  tableros: { gap: 8, paddingHorizontal: 16, paddingTop: 12, alignItems: "center" },
+  tableroChip: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.borde,
+    backgroundColor: colors.blanco,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  tableroOn: { backgroundColor: colors.abismo, borderColor: colors.abismo },
+  tableroTexto: { color: colors.texto, fontWeight: "700" },
+  tableroNuevo: { paddingHorizontal: 10, paddingVertical: 8 },
+  tableroNuevoTexto: { color: colors.laguna, fontWeight: "700" },
+  nuevoTablero: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingTop: 10 },
+  input: {
+    flex: 1,
+    backgroundColor: colors.blanco,
+    borderWidth: 1,
+    borderColor: colors.borde,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    fontSize: 15,
+    color: colors.texto,
+  },
+  btnCrear: { backgroundColor: colors.laguna, borderRadius: 10, paddingHorizontal: 16, justifyContent: "center" },
+  btnCrearTexto: { color: colors.blanco, fontWeight: "700" },
+  tabs: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: colors.borde },
+  tab: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 12,
+    borderBottomWidth: 3,
+    borderBottomColor: "transparent",
+  },
+  tabText: { color: colors.suave, fontWeight: "600", fontSize: 13 },
+  count: {
+    backgroundColor: "#dcecee",
+    color: colors.texto,
+    borderRadius: 10,
+    overflow: "hidden",
+    paddingHorizontal: 7,
+    paddingVertical: 1,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  empty: { color: colors.suave, textAlign: "center", marginTop: 32 },
+  fab: {
+    position: "absolute",
+    right: 16,
+    bottom: 20,
+    backgroundColor: colors.laguna,
+    borderRadius: 999,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  fabTexto: { color: colors.blanco, fontWeight: "700", fontSize: 15 },
+});

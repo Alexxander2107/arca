@@ -1,5 +1,6 @@
 import { createContext, ReactNode, useContext, useEffect, useState } from "react";
-import { getSesion, getUsuarios, saveSesion } from "./storage";
+import { usuarioPorId } from "./db";
+import { getSesion, saveSesion } from "./storage";
 import { Usuario } from "./types";
 
 interface AuthCtx {
@@ -25,9 +26,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Recupera la sesión guardada al abrir la app
   useEffect(() => {
     (async () => {
-      const id = await getSesion();
-      const usuarios = await getUsuarios();
-      setUsuario(usuarios.find((u) => u.id === id) ?? null);
+      try {
+        const id = await getSesion();
+        setUsuario(id ? await usuarioPorId(id) : null);
+      } catch {
+        setUsuario(null);
+      }
       setCargando(false);
     })();
   }, []);
