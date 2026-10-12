@@ -1,40 +1,67 @@
-import { memo } from "react";
-import { View } from "react-native";
+import React from 'react';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { soundService } from '../services/sound';
 
-// Cara de 8x8 bloques: "X" = oscuro, "." = verde
-const CARA = [
-  "........",
-  "........",
-  ".XX..XX.",
-  ".XX..XX.",
-  "...XX...",
-  "..XXXX..",
-  "..XXXX..",
-  "..X..X..",
-];
-const VERDES = ["#4fa83d", "#5cb847", "#43963a"];
-const OSCURO = "#0d1f0d";
-
-function CreeperPixel({ size = 96 }: { size?: number }) {
-  const c = size / 8;
-  return (
-    <View style={{ width: size, height: size }}>
-      {CARA.map((fila, y) => (
-        <View key={y} style={{ flexDirection: "row" }}>
-          {fila.split("").map((ch, x) => (
-            <View
-              key={x}
-              style={{
-                width: c,
-                height: c,
-                backgroundColor: ch === "X" ? OSCURO : VERDES[((x * 7 + y * 13) ^ (x * y)) % 3],
-              }}
-            />
-          ))}
-        </View>
-      ))}
-    </View>
-  );
+interface CreeperPixelProps {
+  onExplode?: () => void;
 }
 
-export default memo(CreeperPixel);
+export const CreeperPixel: React.FC<CreeperPixelProps> = ({ onExplode }) => {
+  const handlePress = () => {
+    // 🔊 Reproduce el sonido característico del Creeper / daño
+    soundService.playSound('creeper_damage');
+
+    if (onExplode) {
+      onExplode();
+    }
+  };
+
+  return (
+    <TouchableOpacity onPress={handlePress} style={styles.container}>
+      {/* Representación píxel del Creeper */}
+      <View style={styles.cabeza}>
+        <View style={styles.ojoIzquierdo} />
+        <View style={styles.ojoDerecho} />
+        <View style={styles.boca} />
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    padding: 10,
+    alignItems: 'center',
+  },
+  cabeza: {
+    width: 60,
+    height: 60,
+    backgroundColor: '#00AA00',
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ojoIzquierdo: {
+    width: 12,
+    height: 12,
+    backgroundColor: '#000',
+    position: 'absolute',
+    top: 14,
+    left: 10,
+  },
+  ojoDerecho: {
+    width: 12,
+    height: 12,
+    backgroundColor: '#000',
+    position: 'absolute',
+    top: 14,
+    right: 10,
+  },
+  boca: {
+    width: 20,
+    height: 24,
+    backgroundColor: '#000',
+    position: 'absolute',
+    bottom: 8,
+  },
+});

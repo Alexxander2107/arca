@@ -1,54 +1,72 @@
-import { useEffect, useRef } from "react";
-import { Animated, Easing, StyleSheet, Text, View } from "react-native";
-import { bisel, fuente, sombraTexto } from "../theme";
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { soundService } from '../services/sound';
 
-interface Props {
-  completadas: number;
-  total: number;
+interface BarraExperienciaProps {
+  nivel: number;
+  xpActual: number;
+  xpSiguienteNivel: number;
 }
 
-const SEGMENTOS = 20;
-
-// Barra de experiencia: el "nivel" son las tareas completadas
-export default function BarraExperiencia({ completadas, total }: Props) {
-  const fraccion = total === 0 ? 0 : completadas / total;
-  const anim = useRef(new Animated.Value(fraccion)).current;
-
+export const BarraExperiencia: React.FC<BarraExperienciaProps> = ({
+  nivel,
+  xpActual,
+  xpSiguienteNivel,
+}) => {
+  // 🔊 Detecta cuando el nivel sube para reproducir el efecto de sonido
   useEffect(() => {
-    Animated.timing(anim, {
-      toValue: fraccion,
-      duration: 700,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
-  }, [fraccion, anim]);
+    if (nivel > 1) {
+      soundService.playSound('level_up');
+    }
+  }, [nivel]);
+
+  const porcentaje = Math.min(Math.max((xpActual / xpSiguienteNivel) * 100, 0), 100);
 
   return (
-    <View style={s.fila}>
-      <Text style={s.nivel}>Nivel {completadas}</Text>
-      <View style={s.barra}>
-        <Animated.View
-          style={[s.relleno, { width: anim.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] }) }]}
-        />
-        <View style={s.segmentos} pointerEvents="none">
-          {Array.from({ length: SEGMENTOS }, (_, i) => (
-            <View key={i} style={s.segmento} />
-          ))}
-        </View>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.nivelTexto}>Nivel {nivel}</Text>
+        <Text style={styles.xpTexto}>
+          {xpActual} / {xpSiguienteNivel} XP
+        </Text>
       </View>
-      <Text style={s.conteo}>
-        {completadas}/{total}
-      </Text>
+      <View style={styles.barraFondo}>
+        <View style={[styles.barraProgreso, { width: `${porcentaje}%` }]} />
+      </View>
     </View>
   );
-}
+};
 
-const s = StyleSheet.create({
-  fila: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 12 },
-  nivel: { fontFamily: fuente, fontSize: 24, color: "#7fe02a", ...sombraTexto },
-  barra: { flex: 1, height: 16, ...bisel.hueco, borderWidth: 2, overflow: "hidden" },
-  relleno: { height: "100%", backgroundColor: "#7fe02a" },
-  segmentos: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, flexDirection: "row" },
-  segmento: { flex: 1, borderRightWidth: 2, borderRightColor: "rgba(0,0,0,0.55)" },
-  conteo: { fontFamily: fuente, fontSize: 20, color: "#ffffff", ...sombraTexto },
+const styles = StyleSheet.create({
+  container: {
+    width: '100%',
+    paddingHorizontal: 16,
+    marginVertical: 10,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  nivelTexto: {
+    fontWeight: 'bold',
+    color: '#55FF55',
+    fontSize: 16,
+  },
+  xpTexto: {
+    color: '#FFF',
+    fontSize: 14,
+  },
+  barraFondo: {
+    height: 14,
+    backgroundColor: '#333',
+    borderRadius: 7,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#555',
+  },
+  barraProgreso: {
+    height: '100%',
+    backgroundColor: '#55FF55',
+  },
 });
