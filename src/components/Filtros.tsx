@@ -1,5 +1,5 @@
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { colors, prioridadColor } from "../theme";
+import { colors, prioridadColor, bisel, fuente, sombraTexto } from "../theme";
 import { Etiqueta, Prioridad } from "../types";
 
 export interface FiltroTareas {
@@ -96,23 +96,15 @@ export default function Filtros({ busqueda, onBusqueda, filtro, onFiltro, etique
 const s = StyleSheet.create({
   caja: { paddingHorizontal: 16, paddingTop: 10 },
   input: {
-    backgroundColor: colors.blanco,
-    borderWidth: 1,
-    borderColor: colors.borde,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    fontSize: 15,
-    color: colors.texto,
-  },
-  fila: { flexDirection: "row", gap: 8, paddingVertical: 10, alignItems: "center" },
-  chip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    backgroundColor: colors.blanco,
+    ...bisel.hueco,
     paddingHorizontal: 12,
     paddingVertical: 6,
+    fontFamily: fuente,
+    fontSize: 24,
+    color: "#ffffff",
   },
-  chipTexto: { color: colors.texto, fontWeight: "600", fontSize: 13 },
-  limpiar: { color: colors.error, fontWeight: "700", paddingHorizontal: 6 },
+  fila: { flexDirection: "row", gap: 8, paddingVertical: 10, alignItems: "center" },
+  chip: { ...bisel.boton, paddingHorizontal: 10, paddingVertical: 2 },
+  chipTexto: { fontFamily: fuente, fontSize: 21, color: "#ffffff", ...sombraTexto },
+  limpiar: { fontFamily: fuente, fontSize: 21, color: "#ff6b6b", paddingHorizontal: 6, ...sombraTexto },
 });

@@ -12,10 +12,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useAuth } from "../auth";
+import Aparecer from "../components/Aparecer";
 import { buscarUsuario, crearUsuario } from "../db";
 import { hashPassword } from "../storage";
-import { colors } from "../theme";
+import { colors, bisel, fuente, sombraTexto } from "../theme";
 import { ROL_LABEL, Rol, Usuario } from "../types";
+import FondoBloques from "../components/FondoBloques";
+import TextoSplash from "../components/TextoSplash";
 
 export default function Login() {
   const { entrar } = useAuth();
@@ -77,17 +80,19 @@ export default function Login() {
 
   return (
     <SafeAreaView style={s.safe}>
+      <FondoBloques variante="tierra" />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-          <View style={s.hero}>
+          <Aparecer style={s.hero}>
             <Text style={s.logo}>ARCA</Text>
             <Text style={s.sub}>Administrador de Registro, Control y Actividades</Text>
-          </View>
+            <TextoSplash />
+          </Aparecer>
 
-          <View style={s.card}>
+          <Aparecer delay={250} desde={40} style={s.card}>
             <View style={s.tabs}>
               {(["login", "registro"] as const).map((m) => (
                 <Pressable key={m} style={s.tab} onPress={() => cambiarModo(m)}>
@@ -156,7 +161,7 @@ export default function Login() {
                 {modo === "login" ? "Entrar" : "Crear cuenta"}
               </Text>
             </Pressable>
-          </View>
+          </Aparecer>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -164,54 +169,38 @@ export default function Login() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.abismo },
-  scroll: { flexGrow: 1 },
-  hero: { padding: 32, paddingTop: 48 },
-  logo: { color: colors.blanco, fontSize: 56, fontWeight: "800", letterSpacing: 3 },
-  sub: { color: "#b9d3d8", fontSize: 16, marginTop: 4, maxWidth: 260 },
-  card: {
-    flex: 1,
-    backgroundColor: colors.espuma,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    padding: 24,
-    minHeight: 420,
+  safe: { flex: 1, backgroundColor: "#3b2a1a" },
+  scroll: { flexGrow: 1, justifyContent: "center" },
+  hero: { padding: 28, paddingTop: 40, paddingBottom: 12, alignItems: "center" },
+  logo: {
+    fontFamily: fuente,
+    fontSize: 88,
+    color: colors.amarillo,
+    letterSpacing: 6,
+    ...sombraTexto,
+    textShadowOffset: { width: 4, height: 4 },
   },
-  tabs: { flexDirection: "row", marginBottom: 16 },
-  tab: { paddingVertical: 8, paddingRight: 20 },
-  tabText: { fontSize: 16, fontWeight: "600", color: colors.suave },
-  tabActive: { color: colors.abismo },
-  tabLine: { height: 3, backgroundColor: colors.laguna, marginTop: 6, borderRadius: 2 },
-  label: { color: colors.texto, fontWeight: "600", marginTop: 12, marginBottom: 6 },
+  sub: { fontFamily: fuente, fontSize: 24, color: "#ffffff", textAlign: "center", ...sombraTexto },
+  card: { ...bisel.panel, margin: 16, padding: 20 },
+  tabs: { flexDirection: "row", gap: 8, marginBottom: 12 },
+  tab: { flex: 1, ...bisel.boton, paddingVertical: 8, alignItems: "center" },
+  tabText: { fontFamily: fuente, fontSize: 24, color: "#e0e0e0", ...sombraTexto },
+  tabActive: { color: colors.amarillo },
+  tabLine: { height: 4, backgroundColor: colors.amarillo, alignSelf: "stretch", marginTop: 4 },
+  label: { fontFamily: fuente, fontSize: 22, color: "#2b2b2b", marginTop: 10, marginBottom: 4 },
   input: {
-    backgroundColor: colors.blanco,
-    borderWidth: 1,
-    borderColor: colors.borde,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: colors.texto,
+    ...bisel.hueco,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontFamily: fuente,
+    fontSize: 24,
+    color: "#ffffff",
   },
-  roles: { flexDirection: "row", gap: 8 },
-  rolBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.borde,
-    backgroundColor: colors.blanco,
-    alignItems: "center",
-  },
-  rolBtnActive: { backgroundColor: colors.laguna, borderColor: colors.laguna },
-  rolText: { fontWeight: "600", color: colors.texto, fontSize: 13 },
-  error: { color: colors.error, marginTop: 12 },
-  btn: {
-    backgroundColor: colors.laguna,
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginTop: 20,
-  },
-  btnText: { color: colors.blanco, fontSize: 16, fontWeight: "700" },
+  roles: { flexDirection: "row", gap: 6 },
+  rolBtn: { flex: 1, ...bisel.boton, paddingVertical: 10, alignItems: "center" },
+  rolBtnActive: { ...bisel.botonVerde },
+  rolText: { fontFamily: fuente, fontSize: 20, color: "#ffffff", ...sombraTexto },
+  error: { fontFamily: fuente, fontSize: 22, color: "#b3261e", marginTop: 10 },
+  btn: { ...bisel.botonVerde, paddingVertical: 12, alignItems: "center", marginTop: 18 },
+  btnText: { fontFamily: fuente, fontSize: 28, color: "#ffffff", ...sombraTexto },
 });

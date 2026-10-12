@@ -11,9 +11,10 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { colors, prioridadColor } from "../theme";
+import { colors, prioridadColor, bisel, fuente, sombraTexto } from "../theme";
 import { Etiqueta, Persona, Prioridad, Tarea, TareaForm } from "../types";
 import { fechaValida, sumarDias } from "../utils/fechas";
+import FondoBloques from "./FondoBloques";
 
 interface Props {
   visible: boolean;
@@ -96,6 +97,7 @@ export default function TareaModal({
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={s.safe}>
+        <FondoBloques variante="tierra" />
         <View style={s.header}>
           <Text style={s.headerTitulo}>{inicial ? "Editar tarea" : "Nueva tarea"}</Text>
           <Pressable onPress={onClose}>
@@ -212,61 +214,40 @@ export default function TareaModal({
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.espuma },
+  safe: { flex: 1, backgroundColor: "#3b2a1a" },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: colors.abismo,
+    backgroundColor: "#3b2a1a",
+    borderBottomWidth: 4,
+    borderBottomColor: "#5da130",
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingVertical: 12,
   },
-  headerTitulo: { color: colors.blanco, fontSize: 18, fontWeight: "700" },
-  cerrar: { color: "#b9d3d8", fontWeight: "600" },
+  headerTitulo: { fontFamily: fuente, fontSize: 32, color: colors.amarillo, ...sombraTexto },
+  cerrar: { fontFamily: fuente, fontSize: 24, color: "#e0e0e0" },
   scroll: { padding: 20, paddingBottom: 40 },
-  label: { color: colors.texto, fontWeight: "600", marginTop: 16, marginBottom: 6 },
+  label: { fontFamily: fuente, fontSize: 24, color: "#ffffff", marginTop: 14, marginBottom: 4, ...sombraTexto },
   input: {
-    backgroundColor: colors.blanco,
-    borderWidth: 1,
-    borderColor: colors.borde,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: colors.texto,
+    ...bisel.hueco,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontFamily: fuente,
+    fontSize: 24,
+    color: "#ffffff",
   },
   fila: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center", marginTop: 6 },
-  atajo: { backgroundColor: "#dcecee", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
-  atajoTexto: { color: colors.texto, fontWeight: "600", fontSize: 13 },
-  segmento: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.borde,
-    backgroundColor: colors.blanco,
-  },
-  segmentoTexto: { fontWeight: "700", color: colors.texto },
-  opcion: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.borde,
-    backgroundColor: colors.blanco,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  opcionOn: { backgroundColor: colors.laguna, borderColor: colors.laguna },
-  opcionTexto: { color: colors.texto, fontWeight: "600", fontSize: 13 },
-  btnSec: { backgroundColor: "#dcecee", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12 },
-  btnSecTexto: { color: colors.texto, fontWeight: "700" },
-  error: { color: colors.error, marginTop: 16 },
-  btn: {
-    backgroundColor: colors.laguna,
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginTop: 24,
-  },
-  btnTexto: { color: colors.blanco, fontSize: 16, fontWeight: "700" },
+  atajo: { ...bisel.boton, paddingHorizontal: 10, paddingVertical: 2 },
+  atajoTexto: { fontFamily: fuente, fontSize: 21, color: "#ffffff", ...sombraTexto },
+  segmento: { flex: 1, alignItems: "center", paddingVertical: 8, ...bisel.boton },
+  segmentoTexto: { fontFamily: fuente, fontSize: 24, color: "#ffffff", ...sombraTexto },
+  opcion: { ...bisel.boton, paddingHorizontal: 10, paddingVertical: 3 },
+  opcionOn: { ...bisel.botonVerde },
+  opcionTexto: { fontFamily: fuente, fontSize: 21, color: "#ffffff", ...sombraTexto },
+  btnSec: { ...bisel.boton, paddingHorizontal: 14, paddingVertical: 8 },
+  btnSecTexto: { fontFamily: fuente, fontSize: 24, color: "#ffffff", ...sombraTexto },
+  error: { fontFamily: fuente, fontSize: 24, color: "#ff6b6b", marginTop: 14, ...sombraTexto },
+  btn: { ...bisel.botonVerde, paddingVertical: 12, alignItems: "center", marginTop: 22 },
+  btnTexto: { fontFamily: fuente, fontSize: 30, color: "#ffffff", ...sombraTexto },
 });

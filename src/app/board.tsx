@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Redirect, useRouter } from "expo-router";
 import {
   ActivityIndicator,
@@ -28,8 +28,14 @@ import {
 import Filtros, { FILTRO_VACIO, FiltroTareas } from "../components/Filtros";
 import TareaCard from "../components/TareaCard";
 import TareaModal from "../components/TareaModal";
-import { colors } from "../theme";
+import { colors, bisel, fuente, sombraTexto } from "../theme";
 import { Estado, Etiqueta, Persona, ROL_LABEL, Tablero, Tarea, TareaForm, Usuario } from "../types";
+import Aparecer from "../components/Aparecer";
+import BarraExperiencia from "../components/BarraExperiencia";
+import FondoBloques from "../components/FondoBloques";
+import LogroToast, { Logro } from "../components/LogroToast";
+import MobSuelo from "../components/MobSuelo";
+import OrbesXP from "../components/OrbesXP";
 
 const COLUMNAS: { id: Estado; titulo: string; vacio: string; color: string }[] = [
   { id: "espera", titulo: "En espera", vacio: "Sin tareas pendientes.", color: "#8fa3ab" },
@@ -88,6 +94,28 @@ function BoardContent({ usuario, onSalir }: Props) {
   useEffect(() => {
     cargarTareas();
   }, [cargarTareas]);
+
+  // ---------- Efectos visuales (solo observan, no cambian los datos) ----------
+  const [logro, setLogro] = useState<Logro | null>(null);
+  const [disparo, setDisparo] = useState(0);
+  const estadosPrevios = useRef<Map<number, Estado> | null>(null);
+
+  useEffect(() => {
+    const actuales = new Map<number, Estado>(tareas.map((t) => [t.id, t.estado]));
+    const antes = estadosPrevios.current;
+    estadosPrevios.current = actuales;
+    if (!antes) return; // primera carga: no celebrar
+
+    // Tarea que ya existía y acaba de pasar a "Completado"
+    const nueva = tareas.find((t) => {
+      const previo = antes.get(t.id);
+      return t.estado === "completado" && previo !== undefined && previo !== "completado";
+    });
+    if (nueva) {
+      setLogro({ texto: nueva.titulo, clave: Date.now() });
+      setDisparo((d) => d + 1);
+    }
+  }, [tareas]);
 
   // ---------- Acciones ----------
   const abrirNueva = () => {
@@ -176,6 +204,11 @@ function BoardContent({ usuario, onSalir }: Props) {
       </View>
 
       <View style={s.body}>
+        <FondoBloques variante="piedra" />
+        <BarraExperiencia
+          completadas={tareas.filter((t) => t.estado === "completado").length}
+          total={tareas.length}
+        />
         {/* Selector de tableros */}
         <ScrollView
           horizontal
@@ -247,7 +280,8 @@ function BoardContent({ usuario, onSalir }: Props) {
           keyExtractor={(t) => String(t.id)}
           contentContainerStyle={{ padding: 16, paddingTop: 12, paddingBottom: 90, flexGrow: 1 }}
           ListEmptyComponent={<Text style={s.empty}>{col.vacio}</Text>}
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
+            <Aparecer delay={Math.min(index, 6) * 70} desde={16}>
             <TareaCard
               tarea={item}
               borde={col.color}
@@ -257,14 +291,20 @@ function BoardContent({ usuario, onSalir }: Props) {
               onMover={(dir) => desplazar(item, dir)}
               onEliminar={() => eliminar(item)}
             />
+            </Aparecer>
           )}
         />
+
+        <MobSuelo />
 
         {puedeCrear && (
           <Pressable style={s.fab} onPress={abrirNueva}>
             <Text style={s.fabTexto}>+ Nueva tarea</Text>
           </Pressable>
         )}
+
+        <OrbesXP disparo={disparo} />
+        <LogroToast logro={logro} />
       </View>
 
       <TareaModal
@@ -306,88 +346,69 @@ export default function Board() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.abismo },
+  safe: { flex: 1, backgroundColor: "#2b2b2b" },
   topbar: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: "#3b2a1a",
+    borderBottomWidth: 4,
+    borderBottomColor: "#5da130",
   },
-  brand: { color: colors.blanco, fontSize: 24, fontWeight: "800", letterSpacing: 2 },
-  user: { color: "#b9d3d8", fontSize: 13 },
-  salir: {
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,.4)",
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  salirText: { color: colors.blanco, fontWeight: "600" },
-  body: { flex: 1, backgroundColor: colors.espuma },
+  brand: { fontFamily: fuente, fontSize: 40, color: colors.amarillo, letterSpacing: 3, ...sombraTexto },
+  user: { fontFamily: fuente, fontSize: 20, color: "#e0e0e0" },
+  salir: { ...bisel.boton, paddingHorizontal: 14, paddingVertical: 6 },
+  salirText: { fontFamily: fuente, fontSize: 22, color: "#ffffff", ...sombraTexto },
+  body: { flex: 1, backgroundColor: "#2b2b2b" },
   tableros: { gap: 8, paddingHorizontal: 16, paddingTop: 12, alignItems: "center" },
-  tableroChip: {
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.borde,
-    backgroundColor: colors.blanco,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  tableroOn: { backgroundColor: colors.abismo, borderColor: colors.abismo },
-  tableroTexto: { color: colors.texto, fontWeight: "700" },
-  tableroNuevo: { paddingHorizontal: 10, paddingVertical: 8 },
-  tableroNuevoTexto: { color: colors.laguna, fontWeight: "700" },
+  tableroChip: { ...bisel.boton, paddingHorizontal: 12, paddingVertical: 4 },
+  tableroOn: { ...bisel.botonVerde },
+  tableroTexto: { fontFamily: fuente, fontSize: 22, color: "#ffffff", ...sombraTexto },
+  tableroNuevo: { paddingHorizontal: 10, paddingVertical: 6 },
+  tableroNuevoTexto: { fontFamily: fuente, fontSize: 22, color: colors.amarillo, ...sombraTexto },
   nuevoTablero: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingTop: 10 },
   input: {
     flex: 1,
-    backgroundColor: colors.blanco,
-    borderWidth: 1,
-    borderColor: colors.borde,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    fontSize: 15,
-    color: colors.texto,
+    ...bisel.hueco,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    fontFamily: fuente,
+    fontSize: 24,
+    color: "#ffffff",
   },
-  btnCrear: { backgroundColor: colors.laguna, borderRadius: 10, paddingHorizontal: 16, justifyContent: "center" },
-  btnCrearTexto: { color: colors.blanco, fontWeight: "700" },
-  tabs: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: colors.borde },
+  btnCrear: { ...bisel.botonVerde, paddingHorizontal: 16, justifyContent: "center" },
+  btnCrearTexto: { fontFamily: fuente, fontSize: 24, color: "#ffffff", ...sombraTexto },
+  tabs: { flexDirection: "row", ...bisel.panel, marginHorizontal: 16, marginTop: 4 },
   tab: {
     flex: 1,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     gap: 6,
-    paddingVertical: 12,
-    borderBottomWidth: 3,
+    paddingVertical: 8,
+    borderBottomWidth: 4,
     borderBottomColor: "transparent",
   },
-  tabText: { color: colors.suave, fontWeight: "600", fontSize: 13 },
+  tabText: { fontFamily: fuente, fontSize: 21, color: "#555555" },
   count: {
-    backgroundColor: "#dcecee",
-    color: colors.texto,
-    borderRadius: 10,
+    fontFamily: fuente,
+    backgroundColor: "#8b8b8b",
+    color: "#ffffff",
     overflow: "hidden",
-    paddingHorizontal: 7,
-    paddingVertical: 1,
-    fontSize: 12,
-    fontWeight: "700",
+    paddingHorizontal: 6,
+    fontSize: 19,
   },
-  empty: { color: colors.suave, textAlign: "center", marginTop: 32 },
+  empty: { fontFamily: fuente, fontSize: 24, color: "#ffffff", textAlign: "center", marginTop: 32, ...sombraTexto },
   fab: {
     position: "absolute",
     right: 16,
     bottom: 20,
-    backgroundColor: colors.laguna,
-    borderRadius: 999,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    ...bisel.botonVerde,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     elevation: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
   },
-  fabTexto: { color: colors.blanco, fontWeight: "700", fontSize: 15 },
+  fabTexto: { fontFamily: fuente, fontSize: 28, color: "#ffffff", ...sombraTexto },
 });

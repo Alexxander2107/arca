@@ -1,18 +1,13 @@
+import { useState } from "react";
 import { Redirect } from "expo-router";
-import { ActivityIndicator, View } from "react-native";
 import { useAuth } from "../auth";
-import { colors } from "../theme";
+import Splash from "../components/Splash";
 
-// Pantalla de arranque: decide si mostrar login o tablero
+// Pantalla de arranque: muestra la carga y después va al login (o al tablero si ya hay sesión)
 export default function Index() {
   const { usuario, cargando } = useAuth();
+  const [terminada, setTerminada] = useState(false);
 
-  if (cargando) {
-    return (
-      <View style={{ flex: 1, justifyContent: "center", backgroundColor: colors.abismo }}>
-        <ActivityIndicator color="#fff" size="large" />
-      </View>
-    );
-  }
+  if (!terminada || cargando) return <Splash onFinish={() => setTerminada(true)} />;
   return <Redirect href={usuario ? "/board" : "/login"} />;
 }

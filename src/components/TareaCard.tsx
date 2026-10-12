@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, prioridadColor } from "../theme";
+import { colors, prioridadColor, bisel, fuente, sombraTexto } from "../theme";
 import { Tarea } from "../types";
 import { estadoVencimiento, formatearFecha } from "../utils/fechas";
 
@@ -93,34 +93,18 @@ export default function TareaCard({
 }
 
 const s = StyleSheet.create({
-  card: {
-    backgroundColor: colors.blanco,
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 10,
-    borderLeftWidth: 5,
-    borderWidth: 1,
-    borderColor: colors.borde,
-  },
-  titulo: { fontSize: 16, fontWeight: "700", color: colors.texto },
-  desc: { color: "#3f5b67", marginTop: 4 },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 10 },
-  chip: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
-  chipBlanco: { color: colors.blanco, fontSize: 12, fontWeight: "700" },
-  chipTexto: { fontSize: 12, fontWeight: "700" },
-  resp: { color: colors.suave, fontSize: 12, marginTop: 8 },
-  foot: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 12 },
-  autor: { color: colors.suave, fontSize: 12 },
+  card: { ...bisel.panel, padding: 12, marginBottom: 10, borderLeftWidth: 8 },
+  titulo: { fontFamily: fuente, fontSize: 26, color: "#222222" },
+  desc: { fontFamily: fuente, fontSize: 21, color: "#3a3a3a", marginTop: 2 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 },
+  chip: { paddingHorizontal: 8, paddingVertical: 1, borderWidth: 2, borderColor: "#222222" },
+  chipBlanco: { fontFamily: fuente, color: "#ffffff", fontSize: 19, ...sombraTexto, textShadowOffset: { width: 1, height: 1 } },
+  chipTexto: { fontFamily: fuente, fontSize: 19 },
+  resp: { fontFamily: fuente, color: "#444444", fontSize: 19, marginTop: 6 },
+  foot: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 10 },
+  autor: { fontFamily: fuente, color: "#444444", fontSize: 19 },
   acciones: { flexDirection: "row", gap: 6 },
-  icon: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.borde,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  off: { opacity: 0.3 },
-  iconTexto: { fontSize: 16, color: colors.texto },
+  icon: { ...bisel.boton, width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+  off: { opacity: 0.35 },
+  iconTexto: { fontSize: 18, color: "#ffffff" },
 });
