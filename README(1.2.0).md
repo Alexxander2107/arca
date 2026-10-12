@@ -85,6 +85,8 @@ Se compila en la nube con [EAS Build](https://docs.expo.dev/build/introduction/)
 
 Cada celular guarda sus propios datos: las tareas de un teléfono no aparecen en otro.
 
+5. La version adecuada para que la app funcione en el dispositivo es: Minimo Androd 7 (API 24), la version obetiva sera Androdi 14 (API 34)
+
 ## Estructura del proyecto
 
 ```
