@@ -1,3 +1,4 @@
+import { soundService } from '../services/sound';
 import { useEffect, useMemo, useRef } from "react";
 import { Animated, Easing, StyleSheet, useWindowDimensions, View } from "react-native";
 
