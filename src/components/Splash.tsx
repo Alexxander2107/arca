@@ -24,7 +24,7 @@ const CARRERA = 3400; // ms que tarda el mob en cruzar la pantalla
 const BLOQUE = 16; // tamaño de cada bloque del suelo
 const FILAS = 4;
 const SUELO_H = BLOQUE * FILAS;
-const CELDA = 6; // tamaño de cada "píxel" del mob
+const CELDA = 8; // tamaño de cada "píxel" del mob
 
 const CONSEJOS = [
   "Toca una tarea para editarla",
@@ -52,6 +52,10 @@ export default function Splash({ onFinish }: { onFinish: () => void }) {
   const haciaDerecha = useMemo(() => Math.random() < 0.5, []);
   const consejo = useMemo(() => CONSEJOS[Math.floor(Math.random() * CONSEJOS.length)], []);
   const anchoMob = mob.ancho * CELDA;
+  // Cómo se mueve según su modo: los que vuelan o nadan van por el aire
+  const rebote = mob.modo === "salta" ? 26 : mob.modo === "vuela" ? 16 : mob.modo === "nada" ? 12 : 4;
+  const elevacion = mob.modo === "vuela" ? 90 : mob.modo === "nada" ? 70 : 0;
+  const pasoPatas = mob.modo === "vuela" ? 110 : 150;
 
   const columnas = Math.ceil(width / BLOQUE);
   const suelo = useMemo(
@@ -92,7 +96,7 @@ export default function Splash({ onFinish }: { onFinish: () => void }) {
     );
 
     // Pequeño rebote al correr (más alto si el mob salta)
-    const paso = mob.salta ? 380 : 150;
+    const paso = mob.modo === "salta" ? 380 : mob.modo === "vuela" || mob.modo === "nada" ? 700 : 150;
     const rebote = Animated.loop(
       Animated.sequence([
         Animated.timing(salto, { toValue: 1, duration: paso, easing: Easing.out(Easing.quad), useNativeDriver: true }),
@@ -131,15 +135,16 @@ export default function Splash({ onFinish }: { onFinish: () => void }) {
         style={[
           s.mob,
           {
+            bottom: SUELO_H + elevacion,
             transform: [
               { translateX: corre.interpolate({ inputRange: [0, 1], outputRange: [desde, hasta] }) },
-              { translateY: salto.interpolate({ inputRange: [0, 1], outputRange: [0, mob.salta ? -26 : -4] }) },
+              { translateY: salto.interpolate({ inputRange: [0, 1], outputRange: [0, -rebote] }) },
               { scaleX: haciaDerecha ? 1 : -1 },
             ],
           },
         ]}
       >
-        <MobCorredor mob={mob} celda={CELDA} />
+        <MobCorredor mob={mob} celda={CELDA} paso={pasoPatas} />
       </Animated.View>
 
       <View style={s.centro}>

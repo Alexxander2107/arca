@@ -18,6 +18,7 @@ import { hashPassword } from "../storage";
 import { colors, bisel, fuente, sombraTexto } from "../theme";
 import { ROL_LABEL, Rol, Usuario } from "../types";
 import FondoBloques from "../components/FondoBloques";
+import EscenaMobs from "../components/EscenaMobs";
 import TextoSplash from "../components/TextoSplash";
 
 export default function Login() {
@@ -162,6 +163,8 @@ export default function Login() {
               </Text>
             </Pressable>
           </Aparecer>
+
+          <EscenaMobs />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
