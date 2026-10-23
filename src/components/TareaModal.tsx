@@ -95,7 +95,7 @@ export default function TareaModal({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
       <SafeAreaView style={s.safe}>
         <FondoBloques variante="tierra" />
         <View style={s.header}>

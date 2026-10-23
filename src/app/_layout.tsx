@@ -12,7 +12,7 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <StatusBar barStyle="light-content" />
-      <Stack screenOptions={{ headerShown: false, animation: "fade" }} />
+      <Stack screenOptions={{ headerShown: false, animation: "fade", gestureEnabled: false }} />
     </AuthProvider>
   );
 }

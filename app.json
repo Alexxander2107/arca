@@ -8,7 +8,13 @@
     "scheme": "arca",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "bundleIdentifier": "com.appforge.arca",
+      "buildNumber": "1",
+      "supportsTablet": false,
+      "icon": "./assets/expo.icon",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.appforge.arca",
@@ -35,7 +41,14 @@
         }
       ],
       "expo-sqlite",
-      "expo-font"
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 33
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
